@@ -15,9 +15,9 @@ class Tuning:
         self.cfg = cfg
         self.viewer = True
         self.sim = IsaacGymWrapper(
-            cfg.isaacgym,
-            actors=cfg.actors,
-            init_positions=cfg.initial_actor_positions,
+            cfg["isaacgym"],
+            actors=cfg["actors"],
+            init_positions=cfg["initial_actor_positions"],
             num_envs=1,
             viewer=self.viewer,
         )
@@ -48,7 +48,7 @@ class Tuning:
         }
         noise_sigma = trial.suggest_float("noise_sigma", 0.01, 2.0)
         mppi_params = {
-            "noise_sigma": (np.eye(self.cfg.nx//2)*noise_sigma).tolist()
+            "noise_sigma": (np.eye(self.cfg["nx"]//2)*noise_sigma).tolist()
         }
 
         # TODO: incorporate latency into this
@@ -96,11 +96,11 @@ class Tuning:
 
             # Timekeeping
             actual_dt = time.time() - t
-            rt = self.cfg.isaacgym.dt / actual_dt
+            rt = self.cfg["isaacgym"].dt / actual_dt
             if rt > 1.0 and self.viewer:
-                time.sleep(self.cfg.isaacgym.dt - actual_dt)
+                time.sleep(self.cfg["isaacgym"].dt - actual_dt)
                 actual_dt = time.time() - t
-                rt = self.cfg.isaacgym.dt / actual_dt
+                rt = self.cfg["isaacgym"].dt / actual_dt
             if self.viewer:
                 print(f"FPS: {1/actual_dt}, RT={rt}")
             t = time.time()

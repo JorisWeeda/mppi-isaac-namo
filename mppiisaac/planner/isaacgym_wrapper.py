@@ -1,8 +1,10 @@
 from isaacgym import gymapi
 from isaacgym import gymtorch
 from dataclasses import dataclass, field
+
 import torch
 import numpy as np
+
 from enum import Enum
 from typing import List, Optional, Any
 
@@ -76,8 +78,12 @@ class ActorWrapper:
     noise_percentage_mass: float = 0.0
     noise_percentage_friction: float = 0.0
 
+    position: Optional[List[float]] = None
+    orientation: Optional[List[float]] = None
+    topic_name: Optional[str] = None
 
-from mppiisaac.utils.isaacgym_utils import load_asset, add_ground_plane, load_actor_cfgs
+
+from control.mppi_isaac.mppiisaac.utils.isaacgym_utils import load_asset, add_ground_plane, load_actor_cfgs
 
 
 class IsaacGymWrapper:
@@ -89,12 +95,13 @@ class IsaacGymWrapper:
         num_envs: int = 1,
         viewer: bool = False,
         device: str = "cuda:0",
-        interactive_goal = True
+        interactive_goal = False
     ):
         self._gym = gymapi.acquire_gym()
         self.env_cfg = load_actor_cfgs(actors)
+        
         self.device = device
-
+        self.actors = actors
         # TODO: make sure there are no actors with duplicate names
         # TODO: check for initial position collisions of actors
 
@@ -110,7 +117,6 @@ class IsaacGymWrapper:
             self.cfg.viewer = viewer
         self.interactive_goal = interactive_goal
         self.num_envs = num_envs
-        self.restarted = 1
         self.start_sim()
 
     def initialize_keyboard_listeners(self):
@@ -137,25 +143,6 @@ class IsaacGymWrapper:
             self.viewer = None
 
         add_ground_plane(self._gym, self._sim)
-
-        # Always add dummy obst at the end
-        if self.restarted == 2:
-            self.env_cfg.append(
-            ActorWrapper(
-                **{
-                    "type": "sphere",
-                    "name": "dummy",
-                    "handle": None,
-                    "size": [0.1],
-                    "fixed": True,
-                    "init_pos": [0, 0, -10],
-                    "collision": False
-                }
-            )
-            )
-            self.restarted += 1
-        else:
-            self.restarted += 1
 
         # Load / create assets for all actors in the envs
         env_actor_assets = []
@@ -187,16 +174,18 @@ class IsaacGymWrapper:
             self._gym.acquire_actor_root_state_tensor(self._sim)
         ).view(self.num_envs, -1, 13)
         self.saved_root_state = None
+        
         self._dof_state = gymtorch.wrap_tensor(
             self._gym.acquire_dof_state_tensor(self._sim)
         ).view(self.num_envs, -1)
+        
         self._rigid_body_state = gymtorch.wrap_tensor(
             self._gym.acquire_rigid_body_state_tensor(self._sim)
         ).view(self.num_envs, -1, 13)
 
         self._net_contact_force = gymtorch.wrap_tensor(
             self._gym.acquire_net_contact_force_tensor(self._sim)
-        ).view(self.num_envs, -1, 3)
+        )
 
         # save buffer of ee states
         if self._visualize_link_present:
@@ -264,6 +253,22 @@ class IsaacGymWrapper:
         )
         self._gym.set_dof_state_tensor(self._sim, gymtorch.unwrap_tensor(dof_state))
         self._gym.refresh_dof_state_tensor(self._sim)
+
+    @property
+    def dof_state(self):
+        return self._dof_state
+    
+    @property
+    def root_state(self):
+        return self._root_state
+    
+    @property
+    def rigid_body_state(self):
+        return self._rigid_body_state
+    
+    @property
+    def net_contact_force(self):
+        return self._net_contact_force
 
     @property
     def num_robots(self):
@@ -395,6 +400,7 @@ class IsaacGymWrapper:
 
     def set_actor_dof_state(self, state):
         self._gym.set_dof_state_tensor(self._sim, gymtorch.unwrap_tensor(state))
+        self._gym.refresh_dof_state_tensor(self._sim)
 
     def set_dof_velocity_target_tensor(self, u):
         self._gym.set_dof_velocity_target_tensor(self._sim, gymtorch.unwrap_tensor(u))
@@ -412,15 +418,18 @@ class IsaacGymWrapper:
 
     def stop_sim(self):
         if self.viewer:
-            self.gym.destroy_viewer(self.viewer)
+            self._gym.destroy_viewer(self.viewer)
         for env_idx in range(self.num_envs):
-            self.gym.destroy_env(self.envs[env_idx])
-        self.gym.destroy_sim(self.sim)
+            self._gym.destroy_env(self.envs[env_idx])
+        self._gym.destroy_sim(self._sim)
 
     def add_to_envs(self, additions):
+        self.stop_sim()
+
+        self.env_cfg = load_actor_cfgs(self.actors)
         for a in additions:
             self.env_cfg.append(ActorWrapper(**a))
-        self.stop_sim()
+
         self.start_sim()
 
     def _create_actor(self, env, env_idx, asset, actor: ActorWrapper) -> int:
@@ -438,18 +447,19 @@ class IsaacGymWrapper:
             group=env_idx if actor.collision else env_idx + self.num_envs,
         )
 
-        if actor.noise_sigma_size:
-            actor.color = np.random.rand(3)
-
         self._gym.set_rigid_body_color(
             env, handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, gymapi.Vec3(*actor.color)
         )
+
         props = self._gym.get_actor_rigid_body_properties(env, handle)
         actor_mass_noise = np.random.uniform(
             -actor.noise_percentage_mass * actor.mass,
             actor.noise_percentage_mass * actor.mass,
         )
+        
         props[0].mass = actor.mass + actor_mass_noise
+        actor.mass = actor.mass + actor_mass_noise
+        
         self._gym.set_actor_rigid_body_properties(env, handle, props)
 
         body_names = self._gym.get_actor_rigid_body_names(env, handle)
@@ -572,9 +582,7 @@ class IsaacGymWrapper:
         """
         This function is mainly used for compatibility with gym_urdf_envs pybullet _sim.
         """
-
         q_idx = 0
-
         dof_state = []
         for actor in self.env_cfg:
             if actor.type != "robot":
@@ -593,7 +601,6 @@ class IsaacGymWrapper:
             if actor.differential_drive:
                 pos = actor_q[:3]
                 vel = actor_qdot[:3]
-
                 self.set_state_tensor_by_pos_vel(actor.handle, pos, vel)
 
                 # assuming wheels at the back of the dof tensor
@@ -607,13 +614,17 @@ class IsaacGymWrapper:
             q_idx += actor_q_count
 
         dof_state_tensor = torch.tensor(dof_state).type(torch.float32).to(self.device)
-
         dof_state_tensor = dof_state_tensor.repeat(self.num_envs, 1)
-        self.set_actor_dof_state(dof_state_tensor)
 
-        self._gym.set_actor_root_state_tensor(
-            self._sim, gymtorch.unwrap_tensor(self._root_state)
+        self.set_actor_dof_state(dof_state_tensor)
+        
+        self._gym.set_dof_state_tensor(
+            self._sim, gymtorch.unwrap_tensor(dof_state_tensor)
         )
+        self._gym.set_actor_root_state_tensor(
+            self._sim, gymtorch.unwrap_tensor(self.root_state)
+        )
+        self._gym.refresh_dof_state_tensor(self._sim)
 
     def interactive_goal_update(self):
         for e in self._gym.query_viewer_action_events(self.viewer):

@@ -1,9 +1,10 @@
-from dataclasses import dataclass, field
-from mppi_torch.mppi import MPPIConfig
-from mppiisaac.planner.isaacgym_wrapper import IsaacGymConfig, ActorWrapper
+from dataclasses import dataclass
 from hydra.core.config_store import ConfigStore
+from typing import List
 
-from typing import List, Optional
+from control.mppi_torch.mppi_torch.mppi import MPPIConfig
+from control.mppi_isaac.mppiisaac.planner.isaacgym_wrapper import IsaacGymConfig
+
 
 
 @dataclass

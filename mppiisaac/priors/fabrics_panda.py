@@ -20,8 +20,8 @@ class FabricsPandaPrior(object):
         assert len(self.nav_goal) == 3
 
         self.weight = 1.0
-        self.dt = cfg.isaacgym.dt
-        self.device = cfg.mppi.device
+        self.dt = cfg["isaacgym"].dt
+        self.device = cfg["mppi"].device
         self.env_id = -2
         self.max_num_obstacles = max_num_obstacles
 
@@ -137,9 +137,9 @@ def fabrics_panda(goal, urdf_file, max_num_obstacles=10):
 )
 def test(cfg: ExampleConfig):
 
-    cfg.isaacgym.viewer = True
+    cfg["isaacgym"].viewer = True
     sim = IsaacGymWrapper(
-        cfg.isaacgym,
+        cfg["isaacgym"],
         cfg.urdf_file,
         cfg.fix_base,
         cfg.flip_visual,

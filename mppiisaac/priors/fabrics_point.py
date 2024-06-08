@@ -15,8 +15,8 @@ class FabricsPointPrior(object):
     def __init__(self, cfg, max_num_obstacles=10):
         self.nav_goal = list(cfg.goal)
         self.weight = 5.0
-        self.dt = cfg.isaacgym.dt
-        self.device = cfg.mppi.device
+        self.dt = cfg["isaacgym"].dt
+        self.device = cfg["mppi"].device
         self.env_id = -2
         self.max_num_obstacles = max_num_obstacles
         self._fabrics_prior = fabrics_point(
@@ -117,9 +117,9 @@ def fabrics_point(goal, weight=0.5, max_num_obstacles=10):
 )
 def test(cfg: ExampleConfig):
 
-    cfg.isaacgym.viewer = True
+    cfg["isaacgym"].viewer = True
     sim = IsaacGymWrapper(
-        cfg.isaacgym,
+        cfg["isaacgym"],
         cfg.urdf_file,
         cfg.fix_base,
         cfg.flip_visual,

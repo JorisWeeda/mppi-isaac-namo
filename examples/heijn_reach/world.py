@@ -10,9 +10,9 @@ import time
 def run_heijn_robot(cfg: ExampleConfig):
 
     sim = IsaacGymWrapper(
-        cfg.isaacgym,
-        actors=cfg.actors,
-        init_positions=cfg.initial_actor_positions,
+        cfg["isaacgym"],
+        actors=cfg["actors"],
+        init_positions=cfg["initial_actor_positions"],
         num_envs=1,
         viewer=True,
     )
@@ -43,11 +43,11 @@ def run_heijn_robot(cfg: ExampleConfig):
 
         # Timekeeping
         actual_dt = time.time() - t
-        rt = cfg.isaacgym.dt / actual_dt
+        rt = cfg["isaacgym"].dt / actual_dt
         if rt > 1.0:
-            time.sleep(cfg.isaacgym.dt - actual_dt)
+            time.sleep(cfg["isaacgym"].dt - actual_dt)
             actual_dt = time.time() - t
-            rt = cfg.isaacgym.dt / actual_dt
+            rt = cfg["isaacgym"].dt / actual_dt
         print(f"FPS: {1/actual_dt}, RT={rt}")
         t = time.time()
 

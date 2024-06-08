@@ -1,12 +1,17 @@
-import mppiisaac
 from isaacgym import gymapi
-from typing import List
-import yaml
-from yaml import SafeLoader
+
+import control.mppi_isaac.mppiisaac as mppiisaac
+
 import numpy as np
 import pathlib
 import os
-from mppiisaac.planner.isaacgym_wrapper import ActorWrapper
+import yaml
+
+from typing import List
+from yaml import SafeLoader
+
+from control.mppi_isaac.mppiisaac.planner.isaacgym_wrapper import ActorWrapper
+
 
 FILE_PATH = pathlib.Path(__file__).parent.resolve()
 
@@ -14,7 +19,7 @@ FILE_PATH = pathlib.Path(__file__).parent.resolve()
 def load_asset(gym, sim, actor_cfg):
     asset_options = gymapi.AssetOptions()
     asset_options.fix_base_link = actor_cfg.fixed
-    asset_root_path = f"{FILE_PATH}/../../assets"
+    asset_root_path=os.path.abspath(os.path.join(FILE_PATH, "../../../../../assets"))
 
     if actor_cfg.type == "robot":
         asset_file = "urdf/" + actor_cfg.urdf_file
@@ -69,10 +74,13 @@ def add_ground_plane(gym, sim):
 
 def load_actor_cfgs(actors: List[str]) -> List[ActorWrapper]:
     actor_cfgs = []
+
+    parent_dir = os.path.abspath(os.path.join(FILE_PATH, "../../../../../"))
+
     for actor_name in actors:
-        with open(
-            f"{os.path.dirname(mppiisaac.__file__)}/../conf/actors/{actor_name}.yaml"
-        ) as f:
+        relative_path = os.path.join(parent_dir, f"config/actors/{actor_name}.yaml")
+
+        with open(relative_path) as f:
             actor_cfgs.append(ActorWrapper(**yaml.load(f, Loader=SafeLoader)))
     
     return actor_cfgs

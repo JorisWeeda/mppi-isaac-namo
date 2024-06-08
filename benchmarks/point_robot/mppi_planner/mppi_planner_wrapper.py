@@ -50,7 +50,7 @@ class MPPIPlanner(Planner):
     def setGoal(self, motionPlanningGoal):
         cfg = OmegaConf.create(self.cfg)
         goal_position = motionPlanningGoal.sub_goals()[0].position()
-        objective = Objective(goal_position, cfg.mppi.device)
+        objective = Objective(goal_position, cfg["mppi"].device)
 
         if not hasattr(self, '_planner'):
             self._planner = MPPIisaacPlanner(cfg, objective)

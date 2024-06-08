@@ -48,8 +48,8 @@ The world file represents your 'real' world and should call the planner each ste
     @hydra.main(version_base=None, config_path=".", config_name="config_boxer_reach")
     def run(cfg):
         sim = IsaacGymWrapper(
-            cfg.isaacgym,
-            actors=cfg.actors,
+            cfg["isaacgym"],
+            actors=cfg["actors"],
             ...
         )
 
