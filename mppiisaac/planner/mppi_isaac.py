@@ -49,19 +49,11 @@ class MPPIisaacPlanner(object):
         # Note: place_holder variable to pass to mppi so it doesn't complain, while the real state is actually the isaacgym simulator itself.
         self.state_place_holder = torch.zeros((self.cfg["mppi"].num_samples, self.cfg["nx"]))
     
-    def update_objective(self, init, goal, mode):
-        if isinstance(init, bytes):
-            init = bytes_to_torch(init, self.cfg["mppi"].device)
+    def update_objective(self, waypoints):
+        if isinstance(waypoints, bytes):
+            waypoints = bytes_to_torch(waypoints, self.cfg["mppi"].device)
 
-        if isinstance(goal, bytes):
-            goal = bytes_to_torch(goal, self.cfg["mppi"].device)
-
-        if isinstance(mode, bytes):
-            mode = bytes_to_torch(mode, self.cfg["mppi"].device)
-
-        self.objective.init = init
-        self.objective.goal = goal
-        self.objective.mode = mode
+        self.objective.waypoints = waypoints
 
         # optimal_vel = (goal[:2] - init[:2]) / sum(abs(goal[:2] - init[:2]))
         # self.mppi.mean_action = torch.Tensor([*optimal_vel, 0.]) * self.mppi.u_max

@@ -11,4 +11,4 @@ def torch_to_bytes(t: torch.Tensor) -> bytes:
 
 def bytes_to_torch(b: bytes, device) -> torch.Tensor:
     buff = io.BytesIO(b)
-    return torch.load(buff, map_location=device)
+    return torch.load(buff, map_location=device).float()
