@@ -127,7 +127,7 @@ class IsaacGymWrapper:
         self._gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_E, "high")
         self._gym.subscribe_viewer_keyboard_event(self.viewer, gymapi.KEY_Q, "low")
 
-    def start_sim(self):
+    def start_sim(self, apply_mass_noise=True):
         self._sim = self._gym.create_sim(
             compute_device=0,
             graphics_device=0,
@@ -161,9 +161,7 @@ class IsaacGymWrapper:
             )
 
             for actor_asset, actor_cfg in zip(env_actor_assets, self.env_cfg):
-                actor_cfg.handle = self._create_actor(
-                    env, env_idx, actor_asset, actor_cfg
-                )
+                actor_cfg.handle = self._create_actor(env, env_idx, actor_asset, actor_cfg, apply_mass_noise)
             self.envs.append(env)
 
         self._visualize_link_present = any([a.visualize_link for a in self.env_cfg])
@@ -423,16 +421,16 @@ class IsaacGymWrapper:
             self._gym.destroy_env(self.envs[env_idx])
         self._gym.destroy_sim(self._sim)
 
-    def add_to_envs(self, additions):
+    def add_to_envs(self, additions, apply_mass_noise=True):
         self.stop_sim()
 
         self.env_cfg = load_actor_cfgs(self.actors)
         for a in additions:
             self.env_cfg.append(ActorWrapper(**a))
 
-        self.start_sim()
+        self.start_sim(apply_mass_noise)
 
-    def _create_actor(self, env, env_idx, asset, actor: ActorWrapper) -> int:
+    def _create_actor(self, env, env_idx, asset, actor: ActorWrapper, apply_mass_noise) -> int:
         if actor.noise_sigma_size is not None:
             asset = load_asset(self._gym, self._sim, actor)
 
@@ -452,14 +450,14 @@ class IsaacGymWrapper:
         )
 
         props = self._gym.get_actor_rigid_body_properties(env, handle)
-        actor_mass_noise = np.random.uniform(
-            -actor.noise_percentage_mass * actor.mass,
-            actor.noise_percentage_mass * actor.mass,
-        )
-        
-        props[0].mass = actor.mass + actor_mass_noise
-        actor.mass = actor.mass + actor_mass_noise
-        
+
+        actor.mass = actor.mass
+        if apply_mass_noise:
+            actor_mass_noise = np.random.uniform(-actor.noise_percentage_mass * actor.mass, actor.noise_percentage_mass * actor.mass,)
+            props[0].mass = actor.mass + actor_mass_noise
+            actor.mass += actor_mass_noise
+        props[0].mass = actor.mass
+
         self._gym.set_actor_rigid_body_properties(env, handle, props)
 
         body_names = self._gym.get_actor_rigid_body_names(env, handle)

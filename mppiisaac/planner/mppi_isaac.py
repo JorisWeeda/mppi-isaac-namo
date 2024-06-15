@@ -119,8 +119,8 @@ class MPPIisaacPlanner(object):
     def command(self):
         return torch_to_bytes(self.mppi.command(self.state_place_holder))
 
-    def add_to_env(self, env_cfg_additions):
-        self.sim.add_to_envs(env_cfg_additions)
+    def add_to_env(self, env_cfg_additions, apply_mass_noise=True):
+        self.sim.add_to_envs(env_cfg_additions, apply_mass_noise)
 
     def get_rollouts(self):
         # lines = lines[:, self.mppi.important_samples_indexes, :]
