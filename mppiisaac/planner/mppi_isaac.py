@@ -67,9 +67,15 @@ class MPPIisaacPlanner(object):
         self.state_place_holder = self.sim.dof_state
         return self.state_place_holder, u
 
-    def running_cost(self, _, u):
+    def running_cost(self, _, u, t, T):
         # Note: again normally mppi passes the state as a parameter in the running cost call, but using isaacgym the state is already saved and accesible in the simulator itself, so we ignore it and pass a handle to the simulator.
-        return self.objective.compute_cost(self.sim, u)
+        dof_dict = self.sim._gym.get_actor_dof_dict(self.sim.envs[0], self.sim.env_cfg[0].handle)
+        
+        reordered_u = torch.zeros_like(u)
+        for idx, value in enumerate(dof_dict.values()):
+            reordered_u[:, value] = u[:, idx]
+
+        return self.objective.compute_cost(self.sim, u, t, T)
 
     def compute_action(self, q, qdot, obst=None, obst_tensor=None):
         self.objective.reset()
@@ -77,10 +83,10 @@ class MPPIisaacPlanner(object):
 
         # NOTE: There are two different ways of updating obstacle root_states
         # Both update based on id in the list of obstacles
-        if obst:
+        if obst is not None:
             self.sim.update_root_state_tensor_by_obstacles(obst)
 
-        if obst_tensor:
+        if obst_tensor is not None:
             self.sim.update_root_state_tensor_by_obstacles_tensor(obst_tensor)
 
         u_cmd = self.mppi.command(self.state_place_holder)
@@ -121,6 +127,12 @@ class MPPIisaacPlanner(object):
 
     def add_to_env(self, env_cfg_additions, apply_mass_noise=True):
         self.sim.add_to_envs(env_cfg_additions, apply_mass_noise)
+
+    def set_actor_mass_by_actor_index(self, actor_index_bytes, new_mass_bytes):
+        actor_index = bytes_to_torch(actor_index_bytes, self.cfg["mppi"].device)
+        new_mass = bytes_to_torch(new_mass_bytes, self.cfg["mppi"].device)
+
+        self.sim.set_actor_mass_by_actor_index(actor_index, new_mass)
 
     def get_rollouts(self):
         # lines = lines[:, self.mppi.important_samples_indexes, :]

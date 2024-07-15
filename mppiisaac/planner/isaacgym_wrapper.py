@@ -360,6 +360,19 @@ class IsaacGymWrapper:
 
     # NOTE: we're using the tensor api everywhere so it works parallelized for the number of envs
     # Setters
+    def set_actor_mass_by_actor_index(self, actor_idx, new_mass):
+
+        self.env_cfg[int(actor_idx)].mass = float(new_mass)
+        handle = self.env_cfg[int(actor_idx)].handle
+
+        props = self._gym.get_actor_rigid_body_properties(self.envs[0], handle)
+        props[0].mass = new_mass
+
+        for env_idx in range(self.num_envs):
+            self._gym.set_actor_rigid_body_properties(self.envs[env_idx], handle, props)
+
+        self._gym.refresh_rigid_body_state_tensor(self._sim)
+
     def set_actor_position_by_actor_index(
         self, position: List[float], actor_idx: int
     ) -> None:
