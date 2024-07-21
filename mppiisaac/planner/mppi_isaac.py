@@ -64,7 +64,7 @@ class MPPIisaacPlanner(object):
         self.sim.apply_robot_cmd(u)
         self.sim.step()
 
-        self.state_place_holder = self.sim.dof_state
+        self.state_place_holder = copy.deepcopy(self.sim.dof_state)
         return self.state_place_holder, u
 
     def running_cost(self, _, u, t, T):
@@ -148,7 +148,7 @@ class MPPIisaacPlanner(object):
 
         return torch_to_bytes(self.mppi.states)
 
-    def get_n_best_samples(self, n=1):
+    def get_n_best_samples(self, n=100):
         states, _ = self.mppi.get_n_best_samples(n)
         return torch_to_bytes(states)
 

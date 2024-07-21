@@ -582,6 +582,9 @@ class IsaacGymWrapper:
                 u[u[:, actor_dof_count -1] > 0.0, actor_dof_count-2] = 0.1
                 u[u[:, actor_dof_count -1] >= 0.0, actor_dof_count-2] = -0.1
 
+        if u.shape[0] == 1:
+            print(f'\t \t u: {u}')
+
         if dof_mode == "effort":
             self.set_dof_actuation_force_tensor(u)
         elif dof_mode == "velocity":
